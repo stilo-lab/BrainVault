@@ -1,0 +1,12 @@
+services:
+  sab-bot:
+    build: .
+    init: true
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_PATH: /app/data/sab.sqlite
+    volumes:
+      - sab-data:/app/data
+volumes:
+  sab-data:

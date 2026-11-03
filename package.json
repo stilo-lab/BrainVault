@@ -1,0 +1,26 @@
+{
+  "name": "sab-discord-bot",
+  "version": "4.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Deutscher Steal-a-Brainrot Discord-Bot mit Wissenssuche und Event-Abos",
+  "engines": {
+    "node": ">=24.17.0"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/index.js",
+    "deploy": "node --env-file-if-exists=.env scripts/deploy.js",
+    "check": "node scripts/check.js",
+    "test": "node --test",
+    "smoke": "node scripts/smoke.js"
+  },
+  "dependencies": {
+    "@napi-rs/canvas": "1.1.0",
+    "@tesseract.js-data/eng": "1.0.0",
+    "cheerio": "1.1.2",
+    "discord.js": "14.28.0",
+    "image-size": "2.0.4",
+    "luxon": "3.7.2",
+    "tesseract.js": "7.0.0"
+  }
+}
