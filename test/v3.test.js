@@ -87,7 +87,7 @@ test('Gewinnerausgabe ist eine statische PNG-Datei',async()=>{
 });
 test('Befehle können ohne CLIENT_ID erkannt und bei unverändertem Stand übersprungen werden',async()=>{
   const s=new Store(':memory:');let puts=0,gets=0;const rest={get:async()=>{gets++;return{id:'123456789012345678'};},put:async()=>{puts++;}};
-  const first=await registerCommands({token:'test',rest,store:s});assert.equal(first.clientId,'123456789012345678');assert.equal(first.count,29);assert.equal(puts,1);
+  const first=await registerCommands({token:'test',rest,store:s});assert.equal(first.clientId,'123456789012345678');assert.equal(first.count,30);assert.equal(puts,1);
   await registerCommands({token:'test',rest,store:s});assert.equal(puts,1);assert.equal(gets,2);s.close();
 });
 test('Ein Container-Neustart mit wiederverwendeter PID blockiert sich nicht selbst',()=>{

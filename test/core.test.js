@@ -12,7 +12,7 @@ import { commands } from '../src/commands.js';
 const now=Date.parse('2026-11-02T12:00:00Z');
 const event=(overrides={})=>({id:'test:1',guild:null,title:'Admin Abuse',topics:['admin','update'],start:now+15*60_000,end:now+45*60_000,source:'https://www.roblox.com/events/1',origin:'roblox',status:'confirmed',note:'',...overrides});
 function setupStore(){const s=new Store(':memory:');s.saveGuild('g','c',{admin:'role',update:'role2'},15);s.setSubscriptions('g','u',['admin','update'],15);return s;}
-test('29 valide Slash-Commands mit eindeutigen Namen',()=>{assert.equal(commands.length,29);assert.equal(new Set(commands.map(c=>c.name  )).size,29);for(const c of commands){assert.ok(c.name.length<=32);assert.ok(c.description.length<=100);}});
+test('30 valide Slash-Commands mit eindeutigen Namen',()=>{assert.equal(commands.length,30);assert.equal(new Set(commands.map(c=>c.name  )).size,30);for(const c of commands){assert.ok(c.name.length<=32);assert.ok(c.description.length<=100);}});
 test('Zeitparser berücksichtigt Berlin, Offset und Discord-Zeitstempel',()=>{
   assert.equal(parseWhen('2026-11-07T21:00'),Date.parse('2026-11-07T20:00Z'));
   assert.equal(parseWhen('2026-07-07T21:00+02:00'),Date.parse('2026-07-07T19:00Z'));
