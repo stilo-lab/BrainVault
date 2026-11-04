@@ -54,6 +54,8 @@ Ohne bestätigte Mitgliedschaft gibt es eine gemeinsame kostenlose W/L- oder Val
 
 ## 5. Discord-Ersteinrichtung
 
+**Event-Pings ab Version 4.1:** Für eine vorhandene Serverrolle `/benachrichtigung rolle` verwenden. Graben mit `/benachrichtigung graben` samt aktuellem Spiel-Countdown einrichten. `/benachrichtigung test` sendet einen echten Test-Ping. [Einrichtung und Update-Anleitung](EVENT_PINGS_UPDATE.md).
+
 ```text
 /diagnose
 /setup kanal:#events

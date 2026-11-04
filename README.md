@@ -1,4 +1,6 @@
-# SAB Companion 4.0 – ohne KI-API
+# SAB Hub 4.1 – ohne KI-API
+
+**Event-Ping-Fix 4.1:** `/benachrichtigung rolle` wählt eine vorhandene Serverrolle samt Kanal. Für Admin Abuse/Taco aktiviert das standardmäßig dauerhafte Wochen-Erinnerungen. `/benachrichtigung graben` richtet Rolle und aktuellen Ingame-Countdown gemeinsam ein. `/benachrichtigung test` prüft einen echten Ping; `/benachrichtigung status` zeigt fehlende Termine oder Rechte. [Update und Einrichtung](EVENT_PINGS_UPDATE.md).
 
 **Cloud-Schnellstart:** [GitHub + Railway einrichten](GITHUB_RAILWAY.md). Auf Railway ist nur `DISCORD_TOKEN` als eigene Variable nötig; ein Volume unter `/app/data` hält alle Einstellungen und Limits dauerhaft fest. Befehle registrieren sich automatisch.
 
@@ -30,7 +32,7 @@ Deutscher Discord-Bot für **Steal a Brainrot**, mit `7ask`, Quellenwissen, loka
    INVITES_ENABLED=true
    ```
 
-5. Speichern und Editor schließen. Setup installiert die festgelegten Abhängigkeiten, registriert **29 Slash-Commands** und gibt den Einladungslink aus. Bot darüber zum Server hinzufügen.
+5. Speichern und Editor schließen. Setup installiert die festgelegten Abhängigkeiten, registriert **30 Slash-Commands** und gibt den Einladungslink aus. Bot darüber zum Server hinzufügen.
 6. `START.cmd` starten. Der Prozess muss für Benachrichtigungen und Giveaways weiterlaufen.
 7. In Discord `/diagnose` prüfen, dann `/setup kanal:#events`, `/panel` und bei Bedarf `/invites einrichten` ausführen.
 
@@ -48,7 +50,7 @@ npm start
 
 Der Deploy-Befehl ersetzt die Slash-Command-Liste dieser eigenen Bot-Anwendung im gewählten Geltungsbereich. Beim normalen Start registriert der Bot geänderte Befehle ebenfalls automatisch.
 
-## Update von Version 1, 2 oder 3
+## Update von Version 1, 2, 3 oder 4.0
 
 Bot stoppen, `data/` und `.env` sichern und die neuen Projektdateien übernehmen. Anschließend `npm ci --ignore-scripts` und `npm run deploy` ausführen. SQLite ergänzt die neuen Tabellen automatisch. Bestehende Abos und Timer bleiben erhalten.
 
