@@ -9,6 +9,26 @@ const base = (name, description, admin = false) => {
 };
 const topicOption = (o, required = false) => o.setName('thema').setDescription('Event-Typ').setRequired(required).addChoices(...topics);
 export const commands = [
+  base('benachrichtigung','Event-Pings für vorhandene Serverrollen einrichten und prüfen',true)
+    .addSubcommand(s=>s.setName('rolle').setDescription('Event-Rolle wählen; für Admin/Taco standardmäßig Wochen-Erinnerungen aktivieren')
+      .addStringOption(o=>topicOption(o,true))
+      .addRoleOption(o=>o.setName('rolle').setDescription('Alle Mitglieder dieser Rolle werden erwähnt; keine automatische Vergabe').setRequired(true))
+      .addChannelOption(o=>o.setName('kanal').setDescription('Kanal für Event-Pings').setRequired(true).addChannelTypes(ChannelType.GuildText,ChannelType.GuildAnnouncement))
+      .addIntegerOption(o=>o.setName('vorlauf').setDescription('Vorlauf und zusätzlich zum Start; Standard 15 Minuten').addChoices(...leadChoices))
+      .addBooleanOption(o=>o.setName('wochenplan').setDescription('Admin/Taco: dauerhafte Wochen-Erinnerung aktivieren; Standard ja')))
+    .addSubcommand(s=>s.setName('graben').setDescription('Graben-Pings mit Rolle und dem aktuellen Ingame-Countdown gemeinsam einrichten')
+      .addRoleOption(o=>o.setName('rolle').setDescription('Alle Mitglieder dieser Rolle erhalten Graben-Pings').setRequired(true))
+      .addChannelOption(o=>o.setName('kanal').setDescription('Graben-Event-Kanal').setRequired(true).addChannelTypes(ChannelType.GuildText,ChannelType.GuildAnnouncement))
+      .addStringOption(o=>o.setName('rest').setDescription('Aktuelle Restzeit im Spiel als HH:MM:SS').setRequired(true).setMaxLength(12))
+      .addIntegerOption(o=>o.setName('intervall').setDescription('Minuten zwischen zwei Starts laut Spiel, z.B. 180').setRequired(true).setMinValue(10).setMaxValue(1440))
+      .addIntegerOption(o=>o.setName('dauer').setDescription('Rundendauer in Minuten laut Spiel').setRequired(true).setMinValue(1).setMaxValue(120))
+      .addIntegerOption(o=>o.setName('vorlauf').setDescription('Vorlauf und zusätzlich zum Start; Standard 15 Minuten').addChoices(...leadChoices))
+      .addIntegerOption(o=>o.setName('gueltig').setDescription('Kalibrierung gilt 1–72 Stunden; Standard 72').setMinValue(1).setMaxValue(72)))
+    .addSubcommand(s=>s.setName('status').setDescription('Rollen, Rechte, fehlende Termine und letzte Zustellungen prüfen'))
+    .addSubcommand(s=>s.setName('test').setDescription('Einen echten, klar markierten Test-Ping an die ausgewählten Rollen senden')
+      .addStringOption(o=>topicOption(o,true)))
+    .addSubcommand(s=>s.setName('aus').setDescription('Zusätzliche Rollen-Pings für ein Event-Thema entfernen')
+      .addStringOption(o=>topicOption(o,true))),
   base('trading','Bilder-/Sticker-Trading-Kanal verwalten',true)
     .addSubcommand(s=>s.setName('kanal').setDescription('Nur Bilder und Sticker ohne Begleittext in diesem Kanal erlauben')
       .addChannelOption(o=>o.setName('kanal').setDescription('Trading-Kanal auswählen').setRequired(true).addChannelTypes(ChannelType.GuildText)))
@@ -130,7 +150,7 @@ export const commands = [
       .addStringOption(o => o.setName('rest').setDescription('Verbleibende Zeit laut Spiel: HH:MM:SS, z.B. 02:59:30').setRequired(true).setMaxLength(12))
       .addIntegerOption(o => o.setName('intervall').setDescription('Abstand zwischen Starts in Minuten, z.B. 180 für 3 Stunden').setRequired(true).setMinValue(10).setMaxValue(1440))
       .addIntegerOption(o => o.setName('dauer').setDescription('Dauer einer Runde in Minuten, laut Spiel').setRequired(true).setMinValue(1).setMaxValue(120))
-      .addIntegerOption(o => o.setName('gueltig').setDescription('Wie viele Stunden gilt diese Kalibrierung? Standard 24, maximal 72.').setMinValue(1).setMaxValue(72)))
+      .addIntegerOption(o => o.setName('gueltig').setDescription('Wie viele Stunden gilt diese Kalibrierung? Standard 72, maximal 72.').setMinValue(1).setMaxValue(72)))
     .addSubcommand(s => s.setName('liste').setDescription('Aktive Timer und Kalibrierung anzeigen'))
     .addSubcommand(s => s.setName('stoppen').setDescription('Timer stoppen und künftige berechnete Termine absagen').addStringOption(o => topicOption(o,true))),
   base('rechner','Einkommen und Amortisationszeit mit eigenen aktuellen Werten berechnen')

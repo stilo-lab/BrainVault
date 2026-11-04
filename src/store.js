@@ -29,6 +29,7 @@ export class Store {
       CREATE INDEX IF NOT EXISTS subscriptions_user ON subscriptions(guild,user);
       CREATE INDEX IF NOT EXISTS events_window ON events(guild,end,status);
       CREATE TABLE IF NOT EXISTS weekly (guild TEXT NOT NULL, topic TEXT NOT NULL, expires INTEGER NOT NULL, source TEXT NOT NULL, creator TEXT NOT NULL, PRIMARY KEY(guild,topic));
+      CREATE TABLE IF NOT EXISTS event_pings (guild TEXT NOT NULL,topic TEXT NOT NULL,role TEXT NOT NULL,channel TEXT NOT NULL,lead INTEGER NOT NULL DEFAULT 15,PRIMARY KEY(guild,topic));
       CREATE TABLE IF NOT EXISTS trade_checks (id TEXT PRIMARY KEY,guild TEXT NOT NULL,user TEXT NOT NULL,created INTEGER NOT NULL,data TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS knowledge (guild TEXT NOT NULL,question TEXT NOT NULL,answer TEXT NOT NULL,source TEXT NOT NULL,updated INTEGER NOT NULL,PRIMARY KEY(guild,question));
       CREATE TABLE IF NOT EXISTS invite_members (guild TEXT NOT NULL,member TEXT NOT NULL,inviter TEXT,joined INTEGER NOT NULL,active INTEGER NOT NULL,eligible INTEGER NOT NULL,reason TEXT NOT NULL,PRIMARY KEY(guild,member));
@@ -44,6 +45,7 @@ export class Store {
     const giveawayColumns=this.db.prepare('PRAGMA table_info(giveaways)').all().map(x=>x.name);
     if(!giveawayColumns.includes('retry_at'))this.db.exec('ALTER TABLE giveaways ADD COLUMN retry_at INTEGER NOT NULL DEFAULT 0');
     if(!giveawayColumns.includes('failures'))this.db.exec('ALTER TABLE giveaways ADD COLUMN failures INTEGER NOT NULL DEFAULT 0');
+    if(!this.db.prepare('PRAGMA table_info(weekly)').all().some(x=>x.name==='auto_renew'))this.db.exec('ALTER TABLE weekly ADD COLUMN auto_renew INTEGER NOT NULL DEFAULT 0');
   }
   close() { this.db.close(); }
   getGuild(id) { const r = this.db.prepare('SELECT * FROM guilds WHERE id=?').get(id); return r && { ...r, roles: JSON.parse(r.roles) }; }
@@ -51,6 +53,10 @@ export class Store {
   saveGuild(id, channel, roles, lead = 15) {
     this.db.prepare('INSERT INTO guilds VALUES (?,?,?,?) ON CONFLICT(id) DO UPDATE SET channel=excluded.channel,roles=excluded.roles,lead=excluded.lead').run(id, channel, JSON.stringify(roles), lead);
   }
+  eventPings(guild){return this.db.prepare('SELECT * FROM event_pings WHERE guild=? ORDER BY topic').all(guild);}
+  allEventPings(){return this.db.prepare('SELECT * FROM event_pings').all();}
+  setEventPing(guild,topic,role,channel,lead){this.db.prepare('INSERT INTO event_pings VALUES (?,?,?,?,?) ON CONFLICT(guild,topic) DO UPDATE SET role=excluded.role,channel=excluded.channel,lead=excluded.lead').run(guild,topic,role,channel,lead);}
+  removeEventPing(guild,topic){return this.db.prepare('DELETE FROM event_pings WHERE guild=? AND topic=?').run(guild,topic).changes;}
   subscriptions(guild, user) { return this.db.prepare('SELECT * FROM subscriptions WHERE guild=? AND user=?').all(guild, user); }
   allSubscriptions() { return this.db.prepare('SELECT * FROM subscriptions').all(); }
   setSubscriptions(guild, user, topics, lead) {
@@ -109,7 +115,7 @@ export class Store {
   }
   allTimers() { return this.db.prepare('SELECT * FROM timers').all(); }
   weekly(guild) {return this.db.prepare('SELECT * FROM weekly WHERE guild=?').all(guild);}
-  setWeekly(guild,topic,expires,source,creator){this.stopWeekly(guild,topic);this.db.prepare('INSERT INTO weekly VALUES (?,?,?,?,?)').run(guild,topic,expires,source,creator);}
+  setWeekly(guild,topic,expires,source,creator,{autoRenew=false}={}){this.stopWeekly(guild,topic);this.db.prepare('INSERT INTO weekly(guild,topic,expires,source,creator,auto_renew) VALUES (?,?,?,?,?,?)').run(guild,topic,expires,source,creator,autoRenew?1:0);}
   stopWeekly(guild,topic){
     this.db.prepare('DELETE FROM weekly WHERE guild=? AND topic=?').run(guild,topic);
     for(const e of this.events(guild))if(e.origin==='weekly'&&e.topics.includes(topic))this.cancel(e.id);
@@ -145,7 +151,7 @@ export class Store {
   }
   deleteGuild(guild) {
     for(const table of ['giveaway_entries','giveaway_draws'])this.db.prepare(`DELETE FROM ${table} WHERE giveaway IN (SELECT id FROM giveaways WHERE guild=?)`).run(guild);
-    for (const table of ['subscriptions','reminders','deliveries','events','timers','weekly','trade_checks','knowledge','invite_members','invite_rewards','invite_claims','giveaways']) this.db.prepare(`DELETE FROM ${table} WHERE guild=?`).run(guild);
+    for (const table of ['subscriptions','reminders','deliveries','events','timers','weekly','event_pings','trade_checks','knowledge','invite_members','invite_rewards','invite_claims','giveaways']) this.db.prepare(`DELETE FROM ${table} WHERE guild=?`).run(guild);
     this.db.prepare('DELETE FROM guilds WHERE id=?').run(guild);
     for(const key of [`trade:catalog:${guild}`,`trade:channel:${guild}`,`board:${guild}`,`board:error:${guild}`,`chat:channel:${guild}`,`invites:config:${guild}`,`invites:error:${guild}`,`trading:config:${guild}`,`trading:error:${guild}`])this.db.prepare('DELETE FROM cache WHERE key=?').run(key);
   }

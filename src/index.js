@@ -5,6 +5,7 @@ import {ValueService} from './value.js';
 import {StickerCatalog} from './sticker-catalog.js';
 import {StickerService} from './stickers.js';
 import {TradingChannel} from './trading-channel.js';
+import {NotificationService,sendRoleNotification} from './notifications.js';
 import { Client, Events, GatewayIntentBits, ActivityType } from 'discord.js';
 import { setTimeout as delay } from 'node:timers/promises';
 import { config, requireCredentials,requireRailwayVolume } from './config.js';
@@ -31,26 +32,25 @@ const tradingEnabled=process.env.TRADING_MEDIA_ENABLED!=='false';
 const intents=[GatewayIntentBits.Guilds];
 if(auto||textEnabled||chatEnabled||tradingEnabled)intents.push(GatewayIntentBits.GuildMessages,GatewayIntentBits.MessageContent);
 if(invitesEnabled)intents.push(GatewayIntentBits.GuildMembers,GatewayIntentBits.GuildInvites);
-const client=new Client({intents,allowedMentions:{parse:[]},presence:{activities:[{name:'7ask · /start · SAB 4.0',type:ActivityType.Watching}]}});
+const client=new Client({intents,allowedMentions:{parse:[]},presence:{activities:[{name:'7ask · /start · SAB Hub 4.1',type:ActivityType.Watching}]}});
 const access=new ValuationAccess(store,client);access.recover();
 const knowledge=new Knowledge(store),roblox=new RobloxSource(store),values=new ValueSource(store),trades=new TradeService(store,values,undefined,access);
 const valueService=new ValueService(store,values,trades,access);
 const stickerCatalog=new StickerCatalog(store),stickers=new StickerService(store,stickerCatalog),trading=new TradingChannel(store,client,{enabled:tradingEnabled});
+const notifications=new NotificationService(store,client);
 const assistant=new SabAssistant(store,knowledge),boards=new EventBoards(store,client,eventsView);
 const invites=new InviteService(store,client),giveaways=new GiveawayService(store,client);
 const textCommands=new TextCommands(store,assistant,(query,guild)=>eventQuestion(store,query,guild),{enabled:textEnabled,chatEnabled});
 const scheduler=new Scheduler(store,async(job,payload)=>{
   if(!client.guilds.cache.has(job.guild)) {const err=new Error('Server nicht mehr erreichbar');err.code=50001;throw err;}
   if(job.kind==='channel') {
-    const channel=await client.channels.fetch(job.target);
-    if(!channel?.isTextBased()||!('send' in channel)||channel.guildId!==job.guild) {const err=new Error('Event-Kanal nicht erreichbar');err.code=10003;throw err;}
-    return channel.send(payload);
+    return sendRoleNotification(client,job,payload);
   }
   // Mitgliedschaft prüfen, damit frühere Servermitglieder keine Event-DMs erhalten.
   await client.guilds.cache.get(job.guild).members.fetch(job.target);
   return (await client.users.fetch(job.target)).send(payload);
 });
-client.on(Events.InteractionCreate,createHandlers({store,knowledge,roblox,client,scheduler,trades,assistant,boards,invites,giveaways,valueService,access,trading,stickers}));
+client.on(Events.InteractionCreate,createHandlers({store,knowledge,roblox,client,scheduler,trades,assistant,boards,invites,giveaways,valueService,access,trading,stickers,notifications}));
 client.on(Events.GuildDelete,guild=>store.deleteGuild(guild.id));
 if(invitesEnabled){
   client.on(Events.GuildMemberAdd,member=>void invites.joined(member).catch(e=>console.warn(`Invite-Zuordnung: ${errorText(e)}`)));
@@ -71,8 +71,8 @@ client.once(Events.ClientReady,async c=>{
   console.log(`Bot einladen: ${inviteUrl(config.clientId||c.application.id)}`);
   if(process.env.AUTO_DEPLOY_COMMANDS!=='false'){try{const result=await registerCommands({token:config.token,clientId:config.clientId||c.application.id,guildId:config.guildId,store});console.log(`${result.count} Befehle ${result.updated?'registriert':'bereits aktuell'}. Bot einladen: ${result.url}`);}catch(e){console.warn(`Befehlsregistrierung: ${errorText(e)}`);}}
   if(process.env.RAILWAY_ENVIRONMENT_ID&&!process.env.RAILWAY_VOLUME_MOUNT_PATH&&!process.env.DB_PATH)console.warn('Railway: Bitte ein Volume unter /app/data hinzufügen, damit Tageslimits und Giveaways Neustarts überstehen.');
-  console.log(`SAB-Bot 4.0 als ${c.user.tag} verbunden. ${c.guilds.cache.size} Server. 7ask: ${textEnabled?'aktiv':'aus'}. W/L-Bildfragen: ${auto?'aktiv':'Slash-Modus'}.`);
-  for(const g of store.guilds())if(!c.guilds.cache.has(g.id))store.deleteGuild(g.id);
+  console.log(`SAB-Bot 4.1 als ${c.user.tag} verbunden. ${c.guilds.cache.size} Server. 7ask: ${textEnabled?'aktiv':'aus'}. W/L-Bildfragen: ${auto?'aktiv':'Slash-Modus'}.`);
+  for(const id of new Set([...store.guilds().map(g=>g.id),...store.allEventPings().map(p=>p.guild)]))if(!c.guilds.cache.has(id))store.deleteGuild(id);
   tickTimer=setInterval(tick,config.tickMs);syncTimer=setInterval(sync,config.syncMs);
   boardTimer=setInterval(()=>void boards.tick().catch(e=>console.warn(`Event-Board: ${errorText(e)}`)),60_000);
   giveawayTimer=setInterval(()=>void giveaways.tick().catch(e=>console.warn(`Giveaway: ${errorText(e)}`)),5000);

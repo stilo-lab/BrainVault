@@ -5,7 +5,7 @@ import { clip, clean, stamp } from './utils.js';
 const button=(id,label,emoji,style=ButtonStyle.Secondary)=>new ButtonBuilder().setCustomId(id).setLabel(label).setEmoji(emoji).setStyle(style);
 export function homeView(store,guild) {
   const settings=store.getGuild(guild);const upcoming=store.events(guild).slice(0,2);const catalog=store.cacheGet(`trade:catalog:${guild}`)?.value;
-  return {embeds:[{title:'🧠 SAB Companion 4.0',color:0x5865f2,
+  return {embeds:[{title:'🧠 SAB Hub 4.1',color:0x5865f2,
     description:'**Deine Zentrale für Steal a Brainrot.**\nFragen stellen, Trades prüfen und die nächsten Events im Blick behalten.',
     fields:[{name:'📅 Nächste Termine',value:upcoming.map(e=>`**${clean(e.title)}** · ${stamp(e.start,'R')}`).join('\n')||'Noch keine bestätigten Termine. Ein Admin kann einen Ingame-Timer kalibrieren.'},
       {name:'🔔 Deine Benachrichtigungen',value:settings?`Event-Kanal: <#${settings.channel}>\nRollen und DMs lassen sich getrennt abonnieren.`:'DM-Abos sind verfügbar. Server-Rollen nach /setup.'},

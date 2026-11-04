@@ -10,8 +10,9 @@ import { homeView, eventControls, questionModal } from './interface.js';
 import { manualTradeModal, valueEditorModal } from './trade.js';
 import {QuotaError,joinControls} from './access.js';
 import {compareBrainrots,farmPlan} from './sab-tools.js';
+import {calibrateEventTimer} from './notifications.js';
 
-const adminCommands = new Set(['setup','panel','event','timer','diagnose','trading']);
+const adminCommands = new Set(['setup','panel','event','timer','diagnose','trading','benachrichtigung']);
 const number = n => Number(n || 0).toLocaleString('de-DE', { maximumFractionDigits: 2 });
 const topicNames = topics => topics.map(t => `${TOPICS[t].emoji} ${TOPICS[t].name}`).join(', ') || 'Keine';
 export async function eventsView(store, guild, topic, requestedPage=0) {
@@ -26,7 +27,10 @@ export async function eventsView(store, guild, topic, requestedPage=0) {
   const timers = store.timers(guild).filter(t => t.expires > now && (!topic || t.topic === topic));
   if ((!topic || topic === 'dig') && !timers.some(t => t.topic === 'dig')) lines.push('⛏️ **Dig-Countdown:** Noch nicht kalibriert. Ein Admin kann mit `/timer setzen` die Restzeit vom Ingame-Board und den aktuellen Abstand übernehmen. Ein fester Takt allein verrät die nächste Startzeit nicht.');
   const fields = [];
-  if (!topic || ['admin','taco'].includes(topic)) fields.push({ name: 'Übliche Wochenzeiten · unbestätigte Vorschau', value: expectedSchedule(now).filter(e => !topic || (topic === 'admin' ? e.name.startsWith('Admin') : e.name.startsWith('Taco'))).map(e => `${e.name}: ${stamp(e.start)}`).join('\n') + '\nNur Orientierung, dafür werden keine automatischen Pings gesendet. [Community-Zeitplan](https://stealabrainrothelper.com/admin-abuse-timer)' });
+  if (!topic || ['admin','taco'].includes(topic)) {
+    const plans=store.weekly(guild).filter(p=>p.expires>now);
+    fields.push({name:'Übliche Wochenzeiten · geplant',value:expectedSchedule(now).filter(e=>!topic||(topic==='admin'?e.name.startsWith('Admin'):e.name.startsWith('Taco'))).map(e=>`${e.name}: ${stamp(e.start)} · ${plans.some(p=>p.topic===(e.name.startsWith('Admin')?'admin':'taco'))?'🔔 Wochen-Erinnerung aktiv':'Vorschau ohne Ping'}`).join('\n')+'\nRolle und Wochen-Erinnerung: /benachrichtigung rolle. [Community-Zeitplan](https://stealabrainrot.wiki/wiki/admin-abuse/)'});
+  }
   return { embeds: [{ title: `📅 SAB Events${topic ? ` · ${TOPICS[topic].name}` : ''}`, color: 0x5865f2, description: clip(lines.join('\n\n'), 3900), fields,
     footer: { text: `Seite ${page+1}/${pages} • ${events.length} Termine • Roblox zuletzt: ${status ? new Date(status.at).toLocaleString('de-DE',{timeZone:'Europe/Berlin'}) : 'noch nicht erfolgreich abgerufen'}${stale ? ' • Quelle veraltet / nicht erreichbar' : ''} • Zeiten lokal in Discord` } }],components:eventControls(topic,page,pages) };
 }
@@ -57,6 +61,8 @@ async function diagnosis(i,store){
   add(true,'Antworten und lokale Texterkennung benötigen keine KI-API');
   add(i.client?.guilds?.cache?.has?.('1562906673549541427'),'Bot im Community-Server für die Unlimited-Prüfung installiert');
   const board=store.cacheGet(`board:${i.guildId}`)?.value,error=store.cacheGet(`board:error:${i.guildId}`)?.value;
+  const now=Date.now();materializeTimers(store,now);materializeWeekly(store,now);
+  for(const topic of ['admin','dig'])add(store.events(i.guildId,now).some(e=>e.topics.includes(topic)),`${TOPICS[topic].name}: ein kommender Termin vorhanden (Details: /benachrichtigung status)`);
   lines.push(`📌 Live-Board: ${board?`<#${board.channel}>`:'nicht eingerichtet'}${error?` · ${clean(error.message)}`:''}`);
   return{embeds:[{title:'🛠️ SAB Einrichtungsprüfung',description:lines.join('\n'),color:lines.some(x=>x.startsWith('⚠'))?0xf5b041:0x2ecc71,footer:{text:'Lokale Wissensantworten + öffentliche Quellen • /abo dmtest prüft persönliche DMs.'}}]};
 }
@@ -77,7 +83,7 @@ async function setup(i, store) {
     // Fortschritt speichern: ein erneuter Aufruf erzeugt nach Teilfehlern keine doppelten Rollen.
     store.saveGuild(i.guildId, channel.id, roles, lead);
   }
-  return { content: `✅ Event-Kanal <#${channel.id}> und fünf Ping-Rollen eingerichtet.\nRollen-Pings: ${lead ? `${lead} Minuten vorher und ` : ''}zum Start.\nMit /panel das Abo-Menü posten. Mit /timer setzen einen Ingame-Countdown kalibrieren.` };
+  return { content: `✅ Event-Kanal <#${channel.id}> und fünf Abo-Rollen eingerichtet.\nRollen-Pings: ${lead ? `${lead} Minuten vorher und ` : ''}zum Start.\nMit /panel können Mitglieder ihre Abo-Rollen auswählen. Für eine vorhandene Serverrolle /benachrichtigung rolle verwenden; Graben mit /benachrichtigung graben am aktuellen Countdown einrichten. /benachrichtigung status zeigt fehlende Termine und Rechte.` };
 }
 async function knowledgeView(knowledge, query, searchOnly = false) {
   const found = await knowledge.search(query, searchOnly ? 8 : 4);
@@ -89,7 +95,7 @@ async function knowledgeView(knowledge, query, searchOnly = false) {
     fields: [...article.fields, ...(found.pages.length > 1 ? [{ name: 'Weitere passende Themen', value: found.pages.slice(1).map(p => `[${clean(p.title)}](${p.url})`).join('\n') }] : [])],
     footer: { text: `Community-Wiki • abgerufen ${new Date(article.fetched).toLocaleString('de-DE',{timeZone:'Europe/Berlin'})}${article.stale ? ' • veralteter Cache, Quelle gerade nicht erreichbar' : ''} • Werte können sich durch Updates ändern` } }] };
 }
-export function createHandlers({ store, knowledge, roblox, client, scheduler, trades, assistant, boards, invites, giveaways, valueService, access, trading, stickers }) {
+export function createHandlers({ store, knowledge, roblox, client, scheduler, trades, assistant, boards, invites, giveaways, valueService, access, trading, stickers, notifications }) {
   const cooldown = new Map();
   const respond = (i,payload) => i.editReply({ ...payload, allowedMentions: { parse: [] } });
   async function component(i) {
@@ -133,6 +139,7 @@ export function createHandlers({ store, knowledge, roblox, client, scheduler, tr
       case 'gw':return giveaways.command(i);
       case 'trading':return trading.command(i);
       case 'sticker':return stickers.command(i);
+      case 'benachrichtigung':return notifications.command(i);
       case 'start':materializeTimers(store);materializeWeekly(store);return homeView(store,i.guildId);
       case 'ask':return await eventQuestion(store,o.getString('frage',true),i.guildId)||assistant.answer(o.getString('frage',true),i.user.id,i.guildId);
       case 'diagnose':return diagnosis(i,store);
@@ -222,16 +229,9 @@ export function createHandlers({ store, knowledge, roblox, client, scheduler, tr
           const timers = store.timers(i.guildId);
           return {content:timers.length ? timers.map(t=>`**${TOPICS[t.topic].name}** · alle ${t.interval/60_000} Min. · Runde ${t.duration/60_000} Min.\nAnker: ${stamp(t.anchor)} · gültig bis ${stamp(t.expires)}${t.expires < Date.now() ? ' · ABGELAUFEN' : ''}`).join('\n\n') : 'Keine Timer kalibriert. Nutze /timer setzen mit der Restzeit vom Ingame-Board.'};
         }
-        const rest = o.getString('rest',true).match(/^(\d{1,3}):([0-5]\d):([0-5]\d)$/);
-        if (!rest) throw new Error('Restzeit bitte als HH:MM:SS eingeben, z.B. 02:59:30.');
-        const remaining = (Number(rest[1])*3600+Number(rest[2])*60+Number(rest[3]))*1000;
-        const interval = o.getInteger('intervall',true)*60_000, duration = o.getInteger('dauer',true)*60_000;
-        if (duration >= interval) throw new Error('Die Event-Dauer muss kleiner als der Abstand zwischen Starts sein.');
-        if (remaining > interval) throw new Error('Die Restzeit ist größer als das Intervall. Prüfe die Werte vom Ingame-Board.');
-        const now = Date.now(), anchor = i.createdTimestamp+remaining, expires = now+(o.getInteger('gueltig') ?? 24)*3600_000;
-        const topic = o.getString('thema',true);
-        store.setTimer(i.guildId,topic,anchor,interval,duration,expires,i.user.id); materializeTimers(store,now);
-        return {content:`✅ **${TOPICS[topic].name}** kalibriert.\nNächster Start: ${stamp(anchor)} · ${stamp(anchor,'R')}\nAbstand: ${interval/60_000} Minuten · Rundendauer: ${duration/60_000} Minuten\nBerechnung gültig bis ${stamp(expires)}.\nDie Startzeiten werden aus deiner Ingame-Beobachtung berechnet. Bei einem geänderten Countdown erneut kalibrieren.`};
+        const topic=o.getString('thema',true),interval=o.getInteger('intervall',true),duration=o.getInteger('dauer',true);
+        const {anchor,expires}=calibrateEventTimer(store,{guild:i.guildId,topic,rest:o.getString('rest',true),interval,duration,hours:o.getInteger('gueltig')??72,creator:i.user.id,created:i.createdTimestamp});
+        return {content:`✅ **${TOPICS[topic].name}** kalibriert.\nNächster Start: ${stamp(anchor)} · ${stamp(anchor,'R')}\nAbstand: ${interval} Minuten · Rundendauer: ${duration} Minuten\nBerechnung gültig bis ${stamp(expires)}.\nDie Startzeiten werden aus deiner Ingame-Beobachtung berechnet. Bei einem geänderten Countdown erneut kalibrieren. /benachrichtigung status prüft die Ping-Empfänger.`};
       }
       case 'rechner': {
         const base = o.getNumber('basis',true), factor = o.getNumber('gesamtfaktor') ?? 1, price = o.getNumber('preis');
@@ -298,7 +298,7 @@ export function createHandlers({ store, knowledge, roblox, client, scheduler, tr
         if(i.options.getSubcommand()==='pflegen'&&!i.memberPermissions?.has(PermissionFlagsBits.ManageGuild))throw new Error('Dafür benötigst du „Server verwalten“.');
         return await i.showModal(i.options.getSubcommand()==='pflegen'?valueEditorModal():manualTradeModal());
       }
-      const privateReply = ['abo','setup','panel','event','timer','erinnerung','status','hilfe','trade','start','diagnose','invites','gw','value','wl','limit','trading','sticker'].includes(i.commandName)||i.commandName==='sab'&&['kanal','lernen','vergessen'].includes(i.options.getSubcommand());
+      const privateReply = ['abo','setup','panel','event','timer','erinnerung','status','hilfe','trade','start','diagnose','invites','gw','value','wl','limit','trading','sticker','benachrichtigung'].includes(i.commandName)||i.commandName==='sab'&&['kanal','lernen','vergessen'].includes(i.options.getSubcommand());
       await i.deferReply(privateReply ? {flags:MessageFlags.Ephemeral} : {});
       return await respond(i,await slash(i));
     } catch (error) {

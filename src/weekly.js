@@ -12,6 +12,7 @@ export function weeklyStarts(topic,from,until){
   return starts;
 }
 export function materializeWeekly(store,now=Date.now()){
+  store.db.prepare('UPDATE weekly SET expires=? WHERE auto_renew=1 AND expires<?').run(now+28*86400_000,now+7*86400_000);
   const official=store.allEvents(now).filter(e=>e.origin==='roblox'&&e.status==='confirmed');
   for(const plan of store.db.prepare('SELECT * FROM weekly WHERE expires>?').all(now)){
     for(const start of weeklyStarts(plan.topic,now-300_000,plan.expires)){
@@ -20,7 +21,7 @@ export function materializeWeekly(store,now=Date.now()){
       const announced=official.some(e=>e.topics.includes(plan.topic)&&DateTime.fromMillis(e.start,{zone:'America/New_York'}).toISODate()===day);
       if(announced){if(store.event(id))store.cancel(id);continue;}
       store.upsertEvent({id,guild:plan.guild,title:TOPICS[plan.topic].name,topics:[plan.topic],start,end:start+45*60_000,source:plan.source,origin:'weekly',status:'confirmed',
-        note:`Vom Serverteam aktivierter Wochenplan • Start aus America/New_York berechnet • Rundendauer 45 Min. als Planungsfenster • gültig bis ${new Date(plan.expires).toISOString()}`},now);
+        note:`${plan.auto_renew?'Dauerhaft aktivierte Wochen-Erinnerung':'Vom Serverteam aktivierter Wochenplan'} • Start aus America/New_York berechnet • Planungsfenster 45 Min. • ${plan.auto_renew?'Community-Zeitplan; Spieländerungen sind möglich. Kein Live-Nachweis.':`gültig bis ${new Date(plan.expires).toISOString()}`}`},now);
     }
   }
 }

@@ -23,8 +23,8 @@ export function classify(text) {
   const s = normalize(text); const topics = [];
   if (/admin abuse|admin event/.test(s)) topics.push('admin');
   if (/taco tuesday/.test(s)) topics.push('taco');
-  if (/grave hunt|dig event|digging event|grave digger|shovel/.test(s)) topics.push('dig');
-  if (/update|new brainrot|new content|mutation/.test(s)) topics.push('update');
+  if (/grave hunt|gravehunt|dig event|digging event|grave digger|shovel|graben|grabungs|schaufel/.test(s)) topics.push('dig');
+  if (/update|\bupd\b|new brainrot|new content|mutation/.test(s)) topics.push('update');
   return topics.length ? topics : ['other'];
 }
 export function parseRobloxEvent(row) {
